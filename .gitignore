@@ -1,3 +1,4 @@
 *.so
 *pycache*
 *.pyc
+*/.git*
