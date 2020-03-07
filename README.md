@@ -11,9 +11,9 @@ We borrow images from SpaceNet [1] corpus, which are hosted as an Amazon Web Ser
 <br/>
 [1] Van Etten, Adam, Dave Lindenbaum, and Todd M. Bacastow. "Spacenet: A remote sensing dataset and challenge series.".
 
-Run pretrained models
+Running pretrained models
 ------
 
 
-Train models
+Training models
 ------
