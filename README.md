@@ -6,7 +6,7 @@ Code for paper:
 
 Data
 ------
-![alt text](https://github.com/ennauata/buildings2vec/blob/master/refs/raw.pdf "Raw images")
+![alt text](https://github.com/ennauata/buildings2vec/blob/master/refs/raw.jpg "Raw images")
 This image is part ofthe SpaceNet corpus and is hosted as an Amazon Web Services (AWS) Public Dataset.<br/>
 [[Download]](https://www.dropbox.com/sh/q1jmqnm26q21h1a/AABtxO0Uni9eZs-Qs37HJTJLa?dl=0)
 
