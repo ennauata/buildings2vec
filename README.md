@@ -7,7 +7,7 @@ Code for paper:
 Data
 ------
 This image is part ofthe SpaceNet corpus and is hosted as an Amazon Web Services (AWS) Public Dataset.<br/>
-[download](https://www.dropbox.com/sh/q1jmqnm26q21h1a/AABtxO0Uni9eZs-Qs37HJTJLa?dl=0)
+[[Download]](https://www.dropbox.com/sh/q1jmqnm26q21h1a/AABtxO0Uni9eZs-Qs37HJTJLa?dl=0)
 
 Run pretrained models
 ------
