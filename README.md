@@ -13,6 +13,7 @@ We borrow images from SpaceNet [1] corpus, which are hosted as an Amazon Web Ser
 
 Running pretrained models
 ------
+PS.: This code is still not clean nor optimized for good performance. Some modules were borrowed from Mask-RCNN, for more detailed documentation refer to https://github.com/facebookresearch/maskrcnn-benchmark. 
 
 ## Detecting corners primitives (PC) and corner-edge relationships (CE)
 
