@@ -45,7 +45,7 @@ PS.: This code is still not clean nor optimized for good performance. Some modul
 - python3 ./tools/test_net.py --config-file '/home/nelson/Workspace/building_reconstruction/working_model/maskrcnn-boundary/configs/buildings_mask_rcnn_R_50_FPN_1x.yaml'
 
 
-## Emsembling primitives and relationships using IP
+## Ensembling primitives and relationships using IP
 
 - Set paths in run_ablation_experiments.py
 - Run python3 run_ablation_experiments.py
