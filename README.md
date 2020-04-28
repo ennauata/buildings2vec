@@ -18,18 +18,20 @@ Running pretrained models
 
 - Change paths in refs.py and datasets/junction.py
 - Download pretrained model and move to output/{EXP_ID}/
+- Pretrained model https://www.dropbox.com/s/h72ux3w32o6t9au/pretrained_junctions.zip?dl=0
 - Run python3 main.py --exp 3 --json --test --checkepoch 15 --gpu 0
 - Predictions should appear in result/
 
 ## Detecting edges primitives (PE)
 - Change paths in detect.py
+- Download pretrained model https://www.dropbox.com/s/b2dcqhb0de2xkua/pretrained_edges.zip?dl=0
 - Run python3 detect.py
 - Predictions will appear in ./output
 
 ## Detecting regions primitive (PR)
 
 - Build maskrcnn
-- Download pretrained model
+- Download pretrained model https://www.dropbox.com/s/wclufzt3liq120y/pretrained_regions.zip?dl=0
 - Set paths in '/home/nelson/Workspace/outdoor_project_to_submit/region_detector/maskrcnn_benchmark/config/paths_catalog.py' 
 - python3 ./tools/test_net.py --config-file '/home/nelson/Workspace/building_reconstruction/working_model/maskrcnn-boundary/configs/buildings_mask_rcnn_R_50_FPN_1x.yaml'
 
@@ -37,7 +39,7 @@ Running pretrained models
 ## Detecting region-to-region relationships (RR)
 
 - Build maskrcnn
-- Download pretrained model
+- Download pretrained model https://www.dropbox.com/s/9ju3iwwexecz69j/pretrained_shared_edges.zip?dl=0
 - Set paths in '/home/nelson/Workspace/outdoor_project_to_submit/region_detector/maskrcnn_benchmark/config/paths_catalog.py' 
 - python3 ./tools/test_net.py --config-file '/home/nelson/Workspace/building_reconstruction/working_model/maskrcnn-boundary/configs/buildings_mask_rcnn_R_50_FPN_1x.yaml'
 
