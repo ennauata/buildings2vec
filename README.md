@@ -14,19 +14,19 @@ We borrow images from SpaceNet [1] corpus, which are hosted as an Amazon Web Ser
 Running pretrained models
 ------
 
-Junctions
+## Detecting corners primitives (PC) and corner-edge relationships (CE)
 
 - Change paths in refs.py and datasets/junction.py
 - Download pretrained model and move to output/{EXP_ID}/
 - Run python3 main.py --exp 3 --json --test --checkepoch 15 --gpu 0
 - Predictions should appear in result/
 
-Edges
+## Detecting edges primitives (PE)
 - Change paths in detect.py
 - Run python3 detect.py
 - Predictions will appear in ./output
 
-Regions
+## Detecting regions primitive (PR)
 
 - Build maskrcnn
 - Download pretrained model
@@ -34,7 +34,7 @@ Regions
 - python3 ./tools/test_net.py --config-file '/home/nelson/Workspace/building_reconstruction/working_model/maskrcnn-boundary/configs/buildings_mask_rcnn_R_50_FPN_1x.yaml'
 
 
-Shared edges
+## Detecting region-to-region relationships (RR)
 
 - Build maskrcnn
 - Download pretrained model
@@ -42,7 +42,7 @@ Shared edges
 - python3 ./tools/test_net.py --config-file '/home/nelson/Workspace/building_reconstruction/working_model/maskrcnn-boundary/configs/buildings_mask_rcnn_R_50_FPN_1x.yaml'
 
 
-IP optimizer
+## Emsembling primitives and relationships using IP
 
 - Set paths in run_ablation_experiments.py
 - Run python3 run_ablation_experiments.py
