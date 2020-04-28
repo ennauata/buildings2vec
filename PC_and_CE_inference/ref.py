@@ -15,11 +15,11 @@ pixel_mean = np.array([115.9839754, 126.63120922, 137.73309306], dtype=np.float3
 
 ext = '.pickle'
 #ext = '.pk'
-data_dir = Path('/home/nelson/Workspace/cities_dataset/')
+data_dir = Path('/home/nelson/Workspace/cities_dataset')
 root_dir = Path(os.getcwd()) / '..'
 data_root = data_dir
-junc_data_root = data_root / 'junc'
+junc_data_root = data_root / 'PC_and_CE_inference'
 output_root = root_dir / "output/"
-result_dir = root_dir / 'result' / 'junc'
-hypeDir = root_dir / 'junc/hypes'
+result_dir = root_dir / 'result' / 'PC_and_CE_inference'
+hypeDir = root_dir / 'PC_and_CE_inference/hypes'
 logdir = root_dir / 'logs'

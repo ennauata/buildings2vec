@@ -104,16 +104,28 @@ class DatasetCatalog(object):
             "img_dir": "cityscapes/images",
             "ann_file": "cityscapes/annotations/instancesonly_filtered_gtFine_test.json"
         },
+#         "buildings_train": {
+#             "img_dir": "/local-scratch2/nnauata/cities_dataset/rgb",
+#             "ann_file": "/local-scratch2/nnauata/cities_dataset/annot",
+#             "id_file": "/local-scratch2/nnauata/cities_dataset/train_list.txt",
+#             "split": "train"
+#         },
+#         "buildings_val": {
+#             "img_dir": "/local-scratch2/nnauata/cities_dataset/rgb",
+#             "ann_file": "/local-scratch2/nnauata/cities_dataset/annot",
+#             "id_file": "/local-scratch2/nnauata/cities_dataset/all_list.txt",
+#             "split": "test"
+#         }
         "buildings_train": {
-            "img_dir": "/home/nelson/Workspace/cities_dataset/rgb",
-            "ann_file": "/home/nelson/Workspace/cities_dataset/annot",
-            "id_file": "/home/nelson/Workspace/cities_dataset/train_list.txt",
+            "img_dir": "/local-scratch2/nnauata/cities_dataset/rgb",
+            "ann_file": "/local-scratch2/nnauata/cities_dataset/annot",
+            "id_file": "/local-scratch2/nnauata/cities_dataset/train_list.txt",
             "split": "train"
         },
         "buildings_val": {
-            "img_dir": "/home/nelson/Workspace/cities_dataset/rgb",
-            "ann_file": "/home/nelson/Workspace/cities_dataset/annot",
-            "id_file": "/home/nelson/Workspace/cities_dataset/all_list.txt",
+            "img_dir": "/local-scratch2/nnauata/for_teaser/rgb",
+            "ann_file": "/local-scratch2/nnauata/for_teaser/annot",
+            "id_file": "/local-scratch2/nnauata/for_teaser/all_list.txt",
             "split": "test"
         }
     }

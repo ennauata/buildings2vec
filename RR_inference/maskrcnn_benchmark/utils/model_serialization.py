@@ -74,17 +74,20 @@ def load_state_dict(model, loaded_state_dict):
     # if the state_dict comes from a model that was wrapped in a
     # DataParallel or DistributedDataParallel during serialization,
     # remove the "module" prefix before performing the matching
+
     loaded_state_dict = strip_prefix_if_present(loaded_state_dict, prefix="module.")
-    _iter = iter(loaded_state_dict.items())
-    _, _ = next(_iter)
-    first_layer_name, first_layer_weight = next(_iter)
-    # print(first_layer_name)
-    # print(first_layer_weight.shape)
-    # if first_layer_weight.shape[1] == 3:
-    #     mean_weight = torch.mean(first_layer_weight, dim=1, keepdim=True)
-    #     mean_weight = mean_weight.repeat(1, 2, 1, 1)
-    #     new_first_layer_weight = torch.cat([first_layer_weight, mean_weight], dim=1)
-    #     loaded_state_dict.update({first_layer_name: new_first_layer_weight})
+#     _iter = iter(loaded_state_dict.items())
+#     _, _ = next(_iter)
+#     first_layer_name, first_layer_weight = next(_iter)
+#     # print(first_layer_name)
+#     # print(first_layer_weight.shape)
+    
+#     print(first_layer_weight.shape)
+#     if first_layer_weight.shape[1] == 3:
+#         mean_weight = torch.mean(first_layer_weight, dim=1, keepdim=True)
+#         mean_weight = mean_weight.repeat(1, 2, 1, 1)
+#         new_first_layer_weight = torch.cat([first_layer_weight, mean_weight], dim=1)
+#         loaded_state_dict.update({first_layer_name: new_first_layer_weight})
     align_and_update_state_dicts(model_state_dict, loaded_state_dict)
 
     # use strict loading

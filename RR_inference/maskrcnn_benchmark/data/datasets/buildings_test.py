@@ -19,8 +19,7 @@ class BuildingsDatasetTest(object):
         with open(self.building_id_file) as f:
             self.building_ids = [x.strip() for x in f.readlines()]
         self.building_ids = self.building_ids
-        self.data_folder = '/home/nelson/Workspace/building_reconstruction/working_model/region_boundary_estimator/data'
-        self.region_folder = '/home/nelson/Workspace/cities_dataset/regions_with_bkg'
+        self.region_folder = '/local-scratch2/nnauata/for_teaser/regions_no_bkg'
         self.sample_list = []
         
         # list regions

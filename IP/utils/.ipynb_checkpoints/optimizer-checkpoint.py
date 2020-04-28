@@ -11,20 +11,19 @@ from utils.intersections import doIntersect
 from skimage import measure
 from rdp import rdp
 
-def reconstructBuildingBaseline(junctions, edge_map, regions=None, with_weighted_junctions=True, with_corner_variables=False, with_edge_confidence=False, 
-    with_corner_edge_confidence=False, \
+def reconstructBuilding(junctions, edge_map, regions=None, with_weighted_junctions=True, with_corner_variables=False, with_edge_confidence=False, 
+    with_corner_edge_confidence=False, coner_to_edge_constraint=False,\
     lw_from_cls=None, use_edge_classifier=False,\
     corner_min_degree_constraint=False, ignore_invalid_corners=False, use_junctions_with_var=False, \
-    use_regions=False, corner_suppression=False, corner_penalty=False, \
+    use_regions=False, corner_suppression=False, closed_region_constraint=False, \
     junction_suppression=False, \
     intersection_constraint=False, angle_constraint=False, use_junctions=False, use_loops=False, \
     dist_thresh=None, angle_thresh=None, edge_threshold=None, corner_edge_thresh=None, thetas=None, corner_confs=None, \
     theta_threshold=0.2, region_hit_threshold=None, theta_confs=None, filter_size=11, \
     region_weight=1000.0, post_process=False, \
-    edge_map_weight=1.0, junctions_weight=1.0, inter_region_weight=1.0, wrong_dir_weight=1.0, closed_region_weight=1.0,
-    closed_region_lowerbound=False, closed_region_upperbound=False,\
-    region_intersection_constraint=False, inter_region_constraint=False,\
-    junctions_soft=False):
+    edge_map_weight=10.0, junctions_weight=1.0, inter_region_weight=10.0, wrong_dir_weight=1.0, closed_region_weight=1.0, 
+    region_intersection_constraint=False, inter_region_constraint=False, intersection_slack_weight=10.0, \
+    junctions_soft=False, shared_edges=None, _id=None, _exp_tag=''):
 
     # create a new model
     m = Model("building_reconstruction_baseline")
@@ -37,7 +36,6 @@ def reconstructBuildingBaseline(junctions, edge_map, regions=None, with_weighted
 
     if ignore_invalid_corners:
         js_list = [k for k in js_list if len(thetas[k]) >= 2]
-
     ls_list = [(k, l) for k in js_list for l in js_list if l > k]
 
     # create variables
@@ -53,42 +51,27 @@ def reconstructBuildingBaseline(junctions, edge_map, regions=None, with_weighted
     # edgeness objective
     if with_edge_confidence:
         for k, l in ls_list:
-            if use_edge_classifier:
-                try:
-                    lw = lw_from_cls[(k, l)]
-                except:
-                    lw = lw_from_cls[(l, k)]
-            else:
-                lw = getLineWeight(edge_map, junctions[k], junctions[l]) 
-            obj += (lw-edge_threshold)*ls_var_dict[(k, l)] # favor edges with over .5?
-
+            lw = getLineWeight(edge_map, junctions[k], junctions[l]) 
+            obj += edge_map_weight*(lw-edge_threshold)*ls_var_dict[(k, l)] # favor edges with over .5?
     elif with_corner_edge_confidence:
         for k, l in ls_list:
-            if use_edge_classifier:
-                try:
-                    lw = lw_from_cls[(k, l)]
-                except:
-                    lw = lw_from_cls[(l, k)]
-            else:
-                lw = getLineWeight(edge_map, junctions[k], junctions[l]) 
-            #obj += (lw-0.1)*ls_var_dict[(k, l)]
-            #obj += (corner_confs[k]-corner_threshold)*(corner_confs[l]-corner_threshold)*(lw-edge_threshold)*ls_var_dict[(k, l)] # favor edges with over .5?
-            #print((np.prod([corner_confs[k], corner_confs[l], lw])-corner_edge_thresh))
+            lw = getLineWeight(edge_map, junctions[k], junctions[l]) 
             obj += edge_map_weight*(np.prod([corner_confs[k], corner_confs[l], lw])-corner_edge_thresh)*ls_var_dict[(k, l)] # favor edges with over .5?
     else:
         for k, l in ls_list:
             obj += ls_var_dict[(k, l)]
 
+    # corner-edge connectivity constraint
     if with_corner_variables:
-        # corner-edge connectivity constraint
         for k, l in ls_list:
             m.addConstr((js_var_dict[k] + js_var_dict[l] - 2)*ls_var_dict[(k, l)] == 0, "c_{}_{}".format(k, l))
 
 ##########################################################################################################
 ############################################### OPTIONAL #################################################
-##########################################################################################################
-
+#############################################################e#############################################
     if use_regions:
+        
+        #  Preprocessing - Start
         reg_list = []
         reg_var_ls = {}
         reg_sm ={}
@@ -105,7 +88,7 @@ def reconstructBuildingBaseline(junctions, edge_map, regions=None, with_weighted
             if np.array(inds).shape[0] > 0:
 
                 ret, thresh = cv2.threshold(np.array(reg_small*255.0).astype('uint8'), 127, 255, 0)
-                _, contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+                contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
                 lg_contour = [None, 0]
 
                 for c in contours:
@@ -116,8 +99,6 @@ def reconstructBuildingBaseline(junctions, edge_map, regions=None, with_weighted
                     if len(c) <= 2:
                         continue
                     dr.polygon(c, fill='white')
-                    # plt.imshow(cont)
-                    # plt.show()
                     size = (np.array(cont)/255.0).sum()
                     if size > lg_contour[1]:
                         lg_contour = [c, size]
@@ -132,95 +113,120 @@ def reconstructBuildingBaseline(junctions, edge_map, regions=None, with_weighted
                     reg_var_ls[i] = m.addVar(vtype = GRB.BINARY, name="reg_{}".format(i))
                     reg_sm[i] = reg_small
                     obj += region_weight*reg_var_ls[i]
+        #  Preprocessing - End
+        
+        # Closed polygon constraint - Start
+        if closed_region_constraint:
+            for i in reg_list:
+                # add loop constraints
+                ths, pts = compute_normals(reg_contour[i], reg_sm[i])
+                # # DEBUG -- SAMPLED POINTS
+                # deb = Image.fromarray(reg_sm[i]*255.0).convert('RGB')
+                # dr = ImageDraw.Draw(deb)
+                # for pt in pts:
+                #     x, y = pt
+                #     dr.ellipse((x-2, y-2, x+2, y+2), fill='green')
+                # plt.imshow(deb)
+                # plt.show()
+                other_regions = [regions[j] for j in reg_list if i != j]
+                sm_other_regions = [reg_sm[j] for j in reg_list if i != j]
+                for pt, th in zip(pts, ths):
+                    # closed region soft constraint -- upperbound
+                    intersec_edges, intersec_region, self_intersect = castRay(pt, th, ls_list, junctions, regions[i], reg_sm[i], other_regions, ray_length=1000.0)
+                    # if self_intersect:
+                    #     intersec_edges, intersec_region, self_intersect = castRay(pt, th, ls_list, junctions, regions[i], reg_sm[i], other_regions, ray_length=20.0)
+                    sum_in_set = LinExpr(0)
+                    for e in list(intersec_edges):
+                        k, l = e
+                        sum_in_set += ls_var_dict[(k, l)]
+                    if not intersec_region:
+                        slack_var = m.addVar(vtype=GRB.INTEGER, name="slack_var_{}_{}".format(th, i))
+                        m.addConstr(sum_in_set*reg_var_ls[i] <= reg_var_ls[i] + slack_var, "r2_{}_{}".format(th, i))
+                        obj -= closed_region_weight * slack_var
+                        m.addConstr(slack_var >= 0)
+                    if True:
+                        # closed region hard constraint -- lowerbound
+                        slack_var = m.addVar(vtype=GRB.INTEGER)
+                        m.addConstr(sum_in_set*reg_var_ls[i] >= reg_var_ls[i]-slack_var, "r2_{}".format(th))
+                        obj -= closed_region_weight * slack_var
+                        m.addConstr(slack_var >= 0)
+        # Closed polygon constraint - End
 
-        for i in reg_list:
-
-            if region_intersection_constraint:
-                # compute intersection constraint
+        # Region intersection constraint - Start
+        if region_intersection_constraint:
+            for i in reg_list:
+                # compute 
                 for k, l in ls_list:
                     intersec = getIntersection(reg_sm[i], junctions[k], junctions[l])
                     if intersec >= region_hit_threshold:
-                        m.addConstr(ls_var_dict[(k, l)]*reg_var_ls[i] == 0, "r1_{}_{}".format(k, l))
-
-            
-            # add loop constraints
-            ths, pts = compute_normals(reg_contour[i], reg_sm[i])
-
-            # # DEBUG -- SAMPLED POINTS
-            # deb = Image.fromarray(reg_sm[i]*255.0).convert('RGB')
-            # dr = ImageDraw.Draw(deb)
-            # for pt in pts:
-            #     x, y = pt
-            #     dr.ellipse((x-2, y-2, x+2, y+2), fill='green')
-            # plt.imshow(deb)
-            # plt.show()
-
-            other_regions = [regions[j] for j in reg_list if i != j]
-            sm_other_regions = [reg_sm[j] for j in reg_list if i != j]
-            for pt, th in zip(pts, ths):
-
-                # closed region soft constraint -- upperbound
-                intersec_edges, intersec_region, self_intersect = castRay(pt, th, ls_list, junctions, regions[i], reg_sm[i], other_regions, ray_length=1000.0)
-                # if self_intersect:
-                #     intersec_edges, intersec_region, self_intersect = castRay(pt, th, ls_list, junctions, regions[i], reg_sm[i], other_regions, ray_length=20.0)
-
-                sum_in_set = LinExpr(0)
-                for e in list(intersec_edges):
-                    k, l = e
-                    sum_in_set += ls_var_dict[(k, l)]
-                if not intersec_region and closed_region_upperbound:
-                    slack_var = m.addVar(vtype=GRB.INTEGER, name="slack_var_{}_{}".format(th, i))
-                    m.addConstr(sum_in_set*reg_var_ls[i] <= reg_var_ls[i] + slack_var, "r2_{}_{}".format(th, i))
-                    obj -= closed_region_weight * slack_var
-                    m.addConstr(slack_var >= 0)
-
-                if closed_region_lowerbound:
-                    # closed region hard constraint -- lowerbound
-                    slack_var = m.addVar(vtype=GRB.INTEGER)
-                    m.addConstr(sum_in_set*reg_var_ls[i] >= reg_var_ls[i]-slack_var, "r2_{}".format(th))
-                    obj -= closed_region_weight * slack_var
-                    m.addConstr(slack_var >= 0)
-
-                if inter_region_constraint:
-                    # inter region soft constraint
-                    other_regions_id = [j for j in reg_list if i != j]
-                    intersec_set, region_id, self_intersect = castRayRegion(pt, th, ls_list, junctions, reg_sm[i], sm_other_regions, regions[i], other_regions, other_regions_id)
-                    if (region_id is not None) and (not self_intersect):
-                        sum_in_set = LinExpr(0)
-
-                        # DEBUG
-                        # deb = Image.fromarray(reg_sm[i]*255.0).convert('RGB')
-                        # dr = ImageDraw.Draw(deb) 
-                        # DEBUG
-                        for e in list(intersec_set):
-                            k, l = e
-                            sum_in_set += ls_var_dict[(k, l)]
-
-                        #     # DEBUG
-                        #     p2, q2 = junctions[k], junctions[l]
-                        #     x3, y3 = p2
-                        #     x4, y4 = q2
-                        #     dr.line((x3, y3, x4, y4), fill='red', width=1)
-                        # plt.imshow(deb)
-                        # plt.show()
-                        # DEBUG
-
-                        slack_var_up = m.addVar(vtype=GRB.INTEGER, name="slack_var_inter_up_{}_{}".format(th, i))
-                        slack_var_low = m.addVar(vtype=GRB.INTEGER, name="slack_var_inter_low_{}_{}".format(th, i))
-                        #m.addConstr(sum_in_set*reg_var_ls[i] == reg_var_ls[i] + slack_var, "r3_{}_{}".format(th, i))
-                        m.addConstr(sum_in_set*reg_var_ls[i] >= 1 - slack_var_low)
-                        m.addConstr(sum_in_set*reg_var_ls[i] <= 1 + slack_var_up)
-                        m.addConstr(slack_var_low >= 0)
+                        
+                        slack_var_up = m.addVar(vtype=GRB.INTEGER)
+                        m.addConstr(ls_var_dict[(k, l)]*reg_var_ls[i] <= slack_var_up)
                         m.addConstr(slack_var_up >= 0)
-                        obj -= inter_region_weight * slack_var_low + inter_region_weight * slack_var_up
+                        obj -= intersection_slack_weight * slack_var_up
+        # Region intersection constraint - End
+        
+        # Shared edge constraint - Start
+        if shared_edges is not None:
+            ## DEBUG ##
+            deb_im = Image.new('RGB', (256, 256))
+            deb_im_arr = np.array(deb_im)
+            for i in reg_list:
+                for j in reg_list:
+                    if (_id, i, j) in shared_edges:
+                        for k, edge_msk in enumerate(shared_edges[(_id, i, j)]):
 
+                            norm = compute_orientation(edge_msk)
+                            n1, n2 = np.array((norm[0], norm[1])), np.array((norm[2], norm[3]))
 
-    # if corner_penalty:
-    #     for j in js_list:
-    #         obj -= 2*js_var_dict[j]
+                            inds = np.array(np.where(reg_sm[i] > 0))
+                            deb_im_arr[inds[0, :], inds[1, :], 0] = 255
 
+                            inds = np.array(np.where(reg_sm[j] > 0))
+                            deb_im_arr[inds[0, :], inds[1, :], 1] = 255
+                            
+                            inds = np.array(np.where(edge_msk > 0))
+                            deb_im_arr[inds[0, :], inds[1, :], 2] = 255
+
+                            deb_im = Image.fromarray(deb_im_arr.astype('uint8'))
+                            dr = ImageDraw.Draw(deb_im)
+                            dr.line((n1[0], n1[1], n2[0], n2[1]), fill='green', width=2)
+                            deb_im_arr = np.array(deb_im)
+
+                            ## DEBUG ##
+                            n_inter = 0
+                            sum_in_set = LinExpr(0)
+                            for j1, j2 in ls_list: 
+                                # print(getIntersection(edge_msk, junctions[j1], junctions[j2]))
+#                                 print(getIntersection(edge_msk, junctions[j1], junctions[j2], width=2))
+#                                 if getIntersection(edge_msk, junctions[j1], junctions[j2], width=4) > 0.5:
+#                                 print(norm)
+                                
+                                q1 = junctions[j1]
+                                q2 = junctions[j2]
+#                                 print(n1, n2, j1, j2)
+                                if doIntersect(n1, n2, q1, q2):
+                                    sum_in_set += ls_var_dict[(j1, j2)]
+                                    n_inter += 1
+                                    dr.line((n1[0], n1[1], n2[0], n2[1]), fill='green', width=2)
+
+                            if n_inter > 0:
+                                slack_var_up = m.addVar(vtype=GRB.INTEGER, name="slack_var_inter_up_{}_{}_{}".format(_id, i, j))
+                                slack_var_low = m.addVar(vtype=GRB.INTEGER, name="slack_var_inter_low_{}_{}_{}".format(_id, i, j))
+                                m.addConstr(sum_in_set >= 1 - slack_var_low)
+                                m.addConstr(sum_in_set <= 1 + slack_var_up)
+                                m.addConstr(slack_var_low >= 0)
+                                m.addConstr(slack_var_up >= 0)
+                                obj -= inter_region_weight * slack_var_low + inter_region_weight * slack_var_up
+
+            ## DEBUG ##
+            deb_im = Image.fromarray(deb_im_arr.astype('uint8'))
+            deb_im.save('/local-scratch2/nnauata/outdoor_project/results/dump/{}.jpg'.format(_id))
+            ## DEBUG ##
+            # Shared edge constraint - End
+            
+    # edge intersection constraint
     if intersection_constraint:
-        # intersection constraint
         for k, (j0, j1) in enumerate(ls_list):
             for l, (j2, j3) in enumerate(ls_list):
                 if l > k:
@@ -229,7 +235,8 @@ def reconstructBuildingBaseline(junctions, edge_map, regions=None, with_weighted
                     if doIntersect(p1, q1, p2, q2):
                         m.addConstr(ls_var_dict[(j0, j1)]*ls_var_dict[(j2, j3)] == 0, "i_{}_{}_{}_{}".format(j0, j1, j2, j3))
 
-    if use_junctions_with_var or use_junctions:
+    
+    if coner_to_edge_constraint:
 
         for j1 in js_list:
 
@@ -323,16 +330,8 @@ def reconstructBuildingBaseline(junctions, edge_map, regions=None, with_weighted
                 # add not in set -- HARD
                 m.addConstr(lines_sets[-1] == 0, "a_{}_{}".format(-1, j1))
 
-            #  OLD
-            #set_sum += junc_th_var*lines_sets[-1]
-            # if use_junctions_with_var:
-            #   # final constraint
-            #   m.addConstr(set_sum == junc_th_var*len(thetas[j1]), "a_sum_{}".format(j1))
-
-
+    # junction spatial constraint
     if corner_suppression:
-
-        # junction spatial constraint
         junc_sets = set()
         for j1 in js_list:
             junc_intersec_set = []
@@ -352,39 +351,8 @@ def reconstructBuildingBaseline(junctions, edge_map, regions=None, with_weighted
                 junc_expr += js_var_dict[j]
             m.addConstr(junc_expr <= 1, "s_{}".format(j1))
 
-    if junction_suppression:
-        angs = []
-        for j1 in js_list:
-
-            # compute angles and degree at each junction
-            deg_j1 = QuadExpr(0)
-            angs = []
-            for j2 in js_list:
-
-                if j1 != j2:
-                    deg_j1 += ls_var_dict[(j1, j2)] if (j1, j2) in ls_var_dict else ls_var_dict[(j2, j1)]
-                    pt1 = junctions[j1]
-                    pt2 = junctions[j2]
-                    a12 = getAngle(pt1, pt2)
-                    angs.append(a12)
-                else:
-                    angs.append(0.0)
-
-            angs = np.array(angs)
-            ang_diffs = np.abs(180.0 - np.abs(angs[:, np.newaxis]-angs[np.newaxis, :]))
-            inds = np.array(np.where(ang_diffs <= 10.0)).transpose(1, 0)
-            keep_track = []
-            for j2, j3 in inds:
-                if j1 != j2 and j2 != j3 and j3 != j1:
-                    js = tuple(np.sort([j1, j2, j3]))
-                    if js not in keep_track:
-                        keep_track.append(js)
-                        ls_var_12 = ls_var_dict[(j1, j2)] if (j1, j2) in ls_var_dict else ls_var_dict[(j2, j1)]
-                        ls_var_13 = ls_var_dict[(j1, j3)] if (j1, j3) in ls_var_dict else ls_var_dict[(j3, j1)]
-                        m.addConstr((deg_j1-2)*js_var_dict[j1] >= ls_var_12*ls_var_13 , "j_3_{}_{}_{}".format(j1, j2, j3))  
-
+    # degree constraint
     if corner_min_degree_constraint:
-        # degree constraint
         for j in js_list:
 
             # degree expression
@@ -417,7 +385,8 @@ def reconstructBuildingBaseline(junctions, edge_map, regions=None, with_weighted
             reg_small = reg_small.filter(ImageFilter.MinFilter(filter_size))
             regs_sm_on.append(reg_small)
         elif 'slack_var_inter' in v.varName:
-            print(v.varName, v.x)
+            continue
+            # print(v.varName, v.x)
 
     if not with_corner_variables:
         juncs_on = np.array(list(set(sum(lines_on, ()))))
@@ -467,7 +436,78 @@ def remove_junctions(junctions, juncs_on, lines_on, delta=10.0):
         if not is_mod:
             break
 
-    return curr_juncs_on, curr_lines_on
+    # clean repeated edges
+    clean_lines_on = []
+    for j1, j2 in curr_lines_on:
+        in_list = False
+        for j3, j4 in clean_lines_on:
+            if (j1 == j3 and j2 == j4) or (j1 == j4 and j2 == j3):
+                  in_list = True
+        if not in_list:
+            clean_lines_on.append((j1, j2))
+
+    return curr_juncs_on, clean_lines_on
+
+def compute_orientation(edge_mask, imsize=256):
+
+	inds = np.array(np.where(edge_mask>0))
+	y, x = np.mean(inds, -1)
+
+# 	deb_im = Image.fromarray(edge_mask*255).convert('RGB')
+# 	dr = ImageDraw.Draw(deb_im)
+# 	dr.ellipse((x-2, y-2, x+2, y+2), fill='red')
+# 	deb_im.save('./debug_cm.jpg')
+	deltas = 127-np.mean(inds, -1)[:, np.newaxis]
+
+	new_inds = (inds+deltas).astype('int')
+	centralized_edge_mask = np.zeros_like(edge_mask)
+	centralized_edge_mask[new_inds[0, :], new_inds[1, :]] = 1.0
+	centralized_edge_mask = Image.fromarray((centralized_edge_mask*255).astype('uint8'))
+
+	max_inliers = 0.0
+	best_angle = None
+	best_norm = None
+	for an in range(360):
+		rad = np.radians(an)
+		dy = np.sin(rad)*100.0
+		dx = np.cos(rad)*100.0
+		x0, y0 = 127+dx, 127+dy
+		x1, y1 = 127-dx, 127-dy
+
+		intersec = getIntersection(centralized_edge_mask, (x0, y0), (x1, y1), width=4)
+		if intersec > max_inliers:
+			max_inliers = intersec
+			best_angle = (int(x0), int(y0), int(x1), int(y1))
+			rad = np.radians(an+90.0)
+			dy = np.sin(rad)*8.0
+			dx = np.cos(rad)*8.0
+			x0, y0 = 127+dx, 127+dy
+			x1, y1 = 127-dx, 127-dy
+			best_norm = (int(x0), int(y0), int(x1), int(y1))
+
+# 	centralized_edge_mask = centralized_edge_mask.convert('RGB')
+# 	dr = ImageDraw.Draw(deb_im)
+# 	best_angle = (best_angle[0]-deltas[1], best_angle[1]-deltas[0], best_angle[2]-deltas[1], best_angle[3]-deltas[0])
+# 	dr.line(best_angle, fill='green', width=4)
+	best_norm = (best_norm[0]-deltas[1], best_norm[1]-deltas[0], best_norm[2]-deltas[1], best_norm[3]-deltas[0])
+# 	dr.line(best_norm, fill='magenta', width=1)
+# 	dr.ellipse((125, 125, 129, 129), fill='blue', width=4)
+# 	deb_im.save('./debug_best_angle.jpg')
+# 	print('HUE')
+
+	return best_norm
+
+# 	for k in range(360):
+
+#         # compute ray
+#         p3 = contour[(k+1)%contour.shape[0]]
+#         a21 = getAngle(p2, p1)
+#         a23 = getAngle(p2, p3)
+#         an = (a21+a23)/2.0
+#         ray_im = Image.new('L', (256, 256))
+#         draw = ImageDraw.Draw(ray_im)
+#         x1, y1 = p2
+# 	return
 
 def compute_normals(contour, reg_sm):
 
@@ -749,12 +789,12 @@ def castRay(pt, th, ls_list, junctions, large_region, region_small, other_region
 
     return intersec_set, intersec_region, self_inter
 
-def getIntersection(region_map, j1, j2):
+def getIntersection(region_map, j1, j2, width=1):
     x1, y1 = j1
     x2, y2 = j2
     m = Image.new('L', (256, 256))
     dr = ImageDraw.Draw(m)
-    dr.line((x1, y1, x2, y2), width=1, fill='white')
+    dr.line((x1, y1, x2, y2), width=width, fill='white')
     m = np.array(m)/255.0
     inds = np.array(np.where(np.array(m) > 0.0))
 
@@ -766,6 +806,36 @@ def getIntersection(region_map, j1, j2):
     # plt.imshow(deb)
     # plt.show()
     return np.logical_and(region_map, m).sum()/inds.shape[1]
+
+# def getIntersection2(region_map, j1, j2, width=1):
+
+# 	for i in range(360):
+
+# 		# compute ray
+# 		x1, y1 = int(pt[0]), int(pt[1])
+# 		rad = np.radians(th)
+# 		dy = np.sin(rad)*ray_length
+# 		dx = np.cos(rad)*ray_length
+# 		x2, y2 = x1+dx, y1+dy
+# 		p1, q1 = (x1, y1), (x2, y2)
+
+
+#     x1, y1 = j1
+#     x2, y2 = j2
+#     m = Image.new('L', (256, 256))
+#     dr = ImageDraw.Draw(m)
+#     dr.line((x1, y1, x2, y2), width=width, fill='white')
+#     m = np.array(m)/255.0
+#     inds = np.array(np.where(np.array(m) > 0.0))
+
+#     # # DEBUG
+#     # deb = Image.fromarray(region_map*255.0).convert('RGB')
+#     # dr = ImageDraw.Draw(deb) 
+#     # dr.line((x1, y1, x2, y2), fill='red', width=1)
+#     # print(np.logical_and(region_map, m).sum()/inds.shape[1])
+#     # plt.imshow(deb)
+#     # plt.show()
+#     return np.logical_and(region_map, m).sum()/inds.shape[1]
 
 def getLineWeight(edge_map, j1, j2):
 
@@ -809,6 +879,93 @@ def inBetween(n, a, b):
         return a <= n and n <= b
     return a <= n or n <= b
 
+def castRay(pt, th, ls_list, junctions, large_region, region_small, other_regions, ray_length=1000.0, thresh=0.0):
+
+    # compute ray
+    x1, y1 = int(pt[0]), int(pt[1])
+    rad = np.radians(th)
+    dy = np.sin(rad)*ray_length
+    dx = np.cos(rad)*ray_length
+    x2, y2 = x1+dx, y1+dy
+
+    # collect intersecting edges
+    intersec_set = set()
+    for i, ls in enumerate(ls_list):
+        k, l = ls
+        p1, q1 = (x1, y1), (x2, y2)
+        p2, q2 = junctions[k], junctions[l]
+        if doIntersect(p1, q1, p2, q2):
+            intersec_set.add((k, l))
+
+    # # DEBUG
+    # deb = Image.fromarray(region_small*255.0).convert('RGB')
+    # dr = ImageDraw.Draw(deb) 
+    # for ls in list(intersec_set):
+    #     k, l = ls
+    #     p2, q2 = junctions[k], junctions[l]
+    #     x3, y3 = p2
+    #     x4, y4 = q2
+    #     dr.line((x3, y3, x4, y4), fill='red', width=1)
+    # dr.line((x1, y1, x2, y2), fill='green', width=4)
+    # plt.imshow(deb)
+    # plt.show()
+    
+
+    # check intersection with other regions
+    intersec_region = False
+    if len(other_regions) > 0:
+        comb_reg = np.clip(np.sum(np.array(other_regions), 0), 0, 1)
+
+        # cast ray
+        ray_im = Image.new('L', (256, 256))
+        dr = ImageDraw.Draw(ray_im) 
+        dr.line((x1, y1, x2, y2), fill='white', width=8)
+        ray = np.array(ray_im)/255.0
+        intersec = np.array(np.where(np.logical_and(ray, comb_reg)>0))
+        intersec_region = (intersec.shape[1] > 0)
+        
+        # # DEBUG
+        # print(comb_reg.shape)
+        # comb_reg = Image.fromarray(comb_reg*255.0).convert('RGB')
+        # dr = ImageDraw.Draw(comb_reg) 
+        # dr.line((x1, y1, x2, y2), fill='green', width=4)
+
+        # print(intersec)
+        # print(intersec_region)
+        # plt.figure()
+        # plt.imshow(comb_reg)
+        # plt.show()
+    
+    # check self intersection
+    ray_im = Image.new('L', (256, 256))
+    dr = ImageDraw.Draw(ray_im) 
+    dr.line((x1, y1, x2, y2), fill='white', width=8)
+    dr.ellipse((x1-4, y1-4, x1+4, y1+4), fill='black')
+    ray = np.array(ray_im)/255.0
+    self_intersect = np.logical_and(ray, region_small).sum()/(ray.sum()+1e-8)
+    self_inter = False
+    if self_intersect > thresh:
+        intersec_region = True
+        self_inter = True
+    # # DEBUG
+    # print(self_intersect)
+    # deb = Image.fromarray(region_small*255.0).convert('RGB')
+    # dr = ImageDraw.Draw(deb) 
+    # # for k, l in list(intersec_set):
+    # #     p2, q2 = junctions[k], junctions[l]
+    # #     x3, y3 = p2
+    # #     x4, y4 = q2
+    # #     dr.line((x3, y3, x4, y4), fill='red', width=1)
+
+    # print(intersec_region)
+
+    # dr.line((x1, y1, x2, y2), fill='green', width=1)
+    # plt.imshow(deb)
+    # plt.show()
+    # # DEBUG
+
+    return intersec_set, intersec_region, self_inter
+
 def filterOutlineEdges(ls_list, junctions, angles, angle_thresh):
 
     # filter edges using angles
@@ -837,3 +994,5 @@ if __name__ == '__main__':
     print(inBetween(0, 0, 10))
     print(inBetween(50, 20, 30))
     print(inBetween(20, 310, 30))
+    
+    

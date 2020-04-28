@@ -84,8 +84,8 @@ def load_annot(graph):
 
     return corner_set, edge_set, pointlines, pointlines_index, theta
 
-DIR_PATH = '/home/nelson/Workspace/cities_dataset/'
-with open('/home/nelson/Workspace/cities_dataset/all_list.txt') as f:
+DIR_PATH = '/local-scratch2/nnauata/for_teaser'
+with open('/local-scratch2/nnauata/for_teaser/all_list.txt') as f:
 	ids = [x.strip() for x in f.readlines()]
 
 # *.pkl  
@@ -171,9 +171,10 @@ for _id in ids:
  
 	annot_path = '{}/annot/{}.npy'.format(DIR_PATH, _id)
 	im_path = '{}/rgb/{}.jpg'.format(DIR_PATH, _id)
-	annot = np.load(open(annot_path, 'rb'), encoding='bytes')
+	annot = np.load(open(annot_path, 'rb'), encoding='bytes', allow_pickle=True)
 	graph = dict(annot[()])
-
+	graph = graph[b'graph']
+    
 	im = np.array(Image.open(im_path))
 	points, lines, pointlines, pointlines_index, theta = load_annot(graph)
 	junction = np.array(points)

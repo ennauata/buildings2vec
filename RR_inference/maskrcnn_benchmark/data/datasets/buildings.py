@@ -19,7 +19,8 @@ class BuildingsDataset(object):
         with open(self.building_id_file) as f:
             self.building_ids = [x.strip() for x in f.readlines()]
         self.building_ids = self.building_ids
-        self.data_folder = '/home/nelson/Workspace/building_reconstruction/working_model/region_boundary_estimator/data'
+        self.regions_folder = '/local-scratch2/nnauata/cities_dataset/shared_edges/regions'
+        self.shared_edges_folder = '/local-scratch2/nnauata/cities_dataset/shared_edges/pairs'
         return
 
     def __getitem__(self, idx):
@@ -29,11 +30,13 @@ class BuildingsDataset(object):
         # load data
         rgb_im = Image.open('{}/{}.jpg'.format(self.img_dir, _building_id))
         annot_path = os.path.join('{}/{}.npy'.format(self.ann_file, _building_id))
-        annot = np.load(open(annot_path, 'rb'), encoding='bytes')
+        annot = np.load(open(annot_path, 'rb'), encoding='bytes', allow_pickle=True)
         graph = dict(annot[()])
 
         # augment data
-        regs_paths = glob.glob('{}/regions/{}_*.pkl'.format(self.data_folder, _building_id))
+#         print('{}/{}_*.pkl'.format(self.regions_folder, _building_id))
+        regs_paths = glob.glob('{}/{}_*.pkl'.format(self.regions_folder, _building_id))
+#         print(len(regs_paths))
         if len(regs_paths) < 2:
             return self.__getitem__((idx+1)%len(self.building_ids))
 
@@ -42,9 +45,9 @@ class BuildingsDataset(object):
         reg_j_idx = reg_j_path.split(str(_building_id)+'_')[-1].replace('.pkl', '')
 
         # load regions info
-        with open('{}/regions/{}_{}.pkl'.format(self.data_folder, _building_id, reg_i_idx), 'rb') as f:
+        with open('{}/{}_{}.pkl'.format(self.regions_folder, _building_id, reg_i_idx), 'rb') as f:
             reg_i_info = p.load(f)
-        with open('{}/regions/{}_{}.pkl'.format(self.data_folder, _building_id, reg_j_idx), 'rb') as f:
+        with open('{}/{}_{}.pkl'.format(self.regions_folder, _building_id, reg_j_idx), 'rb') as f:
             reg_j_info = p.load(f)
 
         # augmentation
@@ -71,10 +74,10 @@ class BuildingsDataset(object):
         
         # generate edges masks
         try:
-            with open('{}/pairs/{}_{}_{}.pkl'.format(self.data_folder, _building_id, reg_i_idx, reg_j_idx), 'rb') as f:
+            with open('{}/{}_{}_{}.pkl'.format(self.shared_edges_folder, _building_id, reg_i_idx, reg_j_idx), 'rb') as f:
                 pair_info = p.load(f)
         except:
-            with open('{}/pairs/{}_{}_{}.pkl'.format(self.data_folder, _building_id, reg_j_idx, reg_i_idx), 'rb') as f:
+            with open('{}/{}_{}_{}.pkl'.format(self.shared_edges_folder, _building_id, reg_j_idx, reg_i_idx), 'rb') as f:
                 pair_info = p.load(f)
 
         shared_edges = pair_info['shared_edges']

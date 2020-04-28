@@ -209,14 +209,24 @@ def nms(junctions, junc_confs, thetas, theta_confs, nms_thresh=4.0):
     return juncs_sorted[nms_inds], junc_confs_sorted[nms_inds], thetas_sorted[nms_inds], theta_confs_sorted[nms_inds]
 
 ######## PREPROCESS DATA ########
-dataset_folder = '/home/nelson/Workspace/cities_dataset'
+dataset_folder = '/local-scratch2/nnauata/cities_dataset'
 annots_folder = '{}/annot'.format(dataset_folder)
-corners_folder = '/home/nelson/Workspace/building_reconstruction/working_model/wireframe/result/junc/3/15/2'
+corners_folder = '/local-scratch2/nnauata/outdoor_project/results/junc/3/15/2'
 region_folder = '{}/regions_with_bkg'.format(dataset_folder)
+shared_edges_folder = '{}/shared_edges'.format(dataset_folder)
 rgb_folder = '{}/rgb'.format(dataset_folder)
 
+if not os.path.exists(shared_edges_folder):
 
-with open('/home/nelson/Workspace/cities_dataset/train_list.txt') as f:
+    print('{}/pairs'.format(shared_edges_folder))
+    print('{}/regions'.format(shared_edges_folder))
+
+    os.mkdir(shared_edges_folder)
+    os.mkdir('{}/pairs'.format(shared_edges_folder))
+    os.mkdir('{}/regions'.format(shared_edges_folder))
+    os.mkdir('{}/debug'.format(shared_edges_folder))
+
+with open('/local-scratch2/nnauata/cities_dataset/train_list.txt') as f:
     train_list = [line.strip() for line in f.readlines()]
 
 samples = []
@@ -227,7 +237,7 @@ for _id in train_list:
 
     # annots
     annot_path = os.path.join(annots_folder, _id +'.npy')
-    annot = np.load(open(annot_path, 'rb'), encoding='bytes')
+    annot = np.load(open(annot_path, 'rb'), encoding='bytes', allow_pickle=True)
     graph = dict(annot[()])
 
     # image
@@ -267,7 +277,7 @@ for _id in train_list:
         reg_info = {'id':_id, 'imgname':_id, 'sm_reg': sm_reg_i, 'reg_det':reg_det_i, \
                     'reg_annot':reg_annot_i, 'rgb':rgb, 'sm_rgb': sm_rgb}
 
-        with open('{}/{}_{}.pkl'.format(region_folder, _id, i), 'wb') as handle:
+        with open('{}/regions/{}_{}.pkl'.format(shared_edges_folder, _id, i), 'wb') as handle:
             p.dump(reg_info, handle, protocol=p.HIGHEST_PROTOCOL)
 
     # if _id not in '1554523086.76':
@@ -367,7 +377,7 @@ for _id in train_list:
                 # save per rergion pair info
                 # deb.save('./data/pairs/{}_{}_{}_all.jpg'.format(_id, i, j))
                 reg_pair_info = {'shared_edges': pos_samples_ij}
-                with open('{}/shared_edges/pairs/{}_{}_{}.pkl'.format(dataset_folder, _id, i, j), 'wb') as handle:
+                with open('{}/pairs/{}_{}_{}.pkl'.format(shared_edges_folder, _id, i, j), 'wb') as handle:
                     p.dump(reg_pair_info, handle, protocol=p.HIGHEST_PROTOCOL)
 
                 # labels = np.concatenate([labels, np.ones(len(pos_samples_ij)), np.zeros(len(neg_samples_ij))], -1)

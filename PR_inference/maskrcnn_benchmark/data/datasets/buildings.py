@@ -25,8 +25,9 @@ class BuildingsDataset(object):
         # load data
         rgb_im = Image.open('{}/{}.jpg'.format(self.img_dir, _building_id))
         annot_path = os.path.join('{}/{}.npy'.format(self.ann_file, _building_id))
-        annot = np.load(open(annot_path, 'rb'), encoding='bytes')
+        annot = np.load(open(annot_path, 'rb'), allow_pickle=True, encoding='bytes')
         graph = dict(annot[()])
+        graph = graph[b'graph']
 
         # augment data
         rot = np.random.choice([0, 90, 180, 270])

@@ -19,6 +19,7 @@ from torch.utils.data import DataLoader
 from dataset.metrics import Metrics
 from utils.utils import nms, compose_im
 from model.mymodel import MyModel
+import os
 
 ##############################################################################################################
 ################################################ Load Model ##################################################
@@ -33,7 +34,7 @@ RGB_FOLDER = '{}/cities_dataset/rgb'.format(PREFIX)
 ANNOT_FOLDER = '{}/cities_dataset/annot'.format(PREFIX)
 
 # define train/val lists
-with open('/home/nelson/Workspace/cities_dataset/all_list.txt') as f:
+with open('{}/cities_dataset/all_list.txt'.format(PREFIX)) as f:
     valid_list = [line.strip() for line in f.readlines()]
 
 mean=[0.485, 0.456, 0.406]
@@ -45,6 +46,7 @@ mt = Metrics()
 ##############################################################################################################
 ############################################# Start Prediction ###############################################
 ##############################################################################################################
+os.makedirs('./output', exist_ok=True)
 for k, data in enumerate(valid_loader):
 
     # get the inputs
@@ -54,43 +56,10 @@ for k, data in enumerate(valid_loader):
     # run model
     seg = net(xs)
     seg = F.sigmoid(seg).squeeze(1).squeeze(0).detach().cpu().numpy()
-    #seg = F.softmax(seg, -1).squeeze(0).squeeze(0).detach().cpu().numpy()
-    #seg = np.argmax(seg, -1)
-    # get input image
-    # im_path = os.path.join(RGB_FOLDER, valid_list[k]+'.jpg')
-    # im = Image.open(im_path)
-    #print(seg.shape)
+
     # draw output
     seg = (seg - np.min(seg))/(np.max(seg) - np.min(seg))
     seg = seg*255.0
-    #seg = np.array(es[0,: ,:])
-
-    #print(seg)
-    # for angle in range(1, 20):
-    #     seg2 = np.array(es[0,: ,:])
-    #     seg2[seg2 != angle] = 0
-    #     seg2[seg2 == angle] = 255
-        
-    #     if np.sum(seg2) == 0:
-    #         continue
-
-    #     seg_im2 = Image.fromarray(np.array(seg2).astype('uint8'))
-    #     seg_im = Image.fromarray(np.array(seg).astype('uint8'))
-
-        # print(angle)
-        # plt.imshow(seg_im2)
-        # plt.figure()
-        # plt.imshow(seg_im)
-        # plt.show()
-
     seg_im = Image.fromarray(np.array(seg).astype('uint8'))
-
-    #seg_im = compose_im(np.array(seg), seg)
-    #seg = (seg - np.min(seg))/(np.max(seg) - np.min(seg))
-    # plt.imshow(seg_im)
-    # plt.show()
-
-    #seg_im = seg_im.resize((512, 512))
- 
-    seg_im.save('{}/cities_dataset/edge_map/{}.jpg'.format(PREFIX, valid_list[k]))
+    seg_im.save('./output/{}.jpg'.format(valid_list[k]))
 

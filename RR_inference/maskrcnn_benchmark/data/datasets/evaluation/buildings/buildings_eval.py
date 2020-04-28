@@ -17,16 +17,14 @@ import math
 import operator
 from rdp import rdp
 from scipy.signal import find_peaks
-sys.path.insert(0, '/home/nelson/Workspace/building_reconstruction/working_model/wireframe/junc/utils/')
-from intersections import doIntersect
 import pickle as p
 import random
 from collections import defaultdict
 
 # sys.path.insert(0, '/home/nelson/Workspace/building_reconstruction/working_model/wireframe/junc/utils/')
 # from optimizer import extractCycle
-region_folder = '/home/nelson/Workspace/cities_dataset/regions_with_bkg'
-shared_edges_folder = '/home/nelson/Workspace/cities_dataset/'
+region_folder = '/local-scratch2/nnauata/for_teaser/regions_no_bkg'
+shared_edges_folder = '/local-scratch2/nnauata/for_teaser'
 
 def do_buildings_evaluation(dataset, predictions, box_only, output_folder, iou_types, expected_results, expected_results_sigma_tol):
 
@@ -90,10 +88,10 @@ def do_buildings_evaluation(dataset, predictions, box_only, output_folder, iou_t
 
         ### DEBUG ###
         deb_im = Image.fromarray(deb_im)
-        deb_im.save('/home/nelson/Workspace/outdoor_project/results/dump/edges_{}.jpg'.format(_building_id))
+        deb_im.save('/local-scratch2/nnauata/outdoor_project/results/dump/edges_{}.jpg'.format(_building_id))
         ### DEBUG ###
 
-    with open("{}/shared_edges_with_bkg.pkl".format(shared_edges_folder),"wb") as f:
+    with open("{}/shared_edges_no_bkg.pkl".format(shared_edges_folder),"wb") as f:
         p.dump(im_shared_edges, f)
 
     return

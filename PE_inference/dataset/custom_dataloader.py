@@ -111,7 +111,7 @@ class ComposedImageData(Dataset):
 
         # load ground-truth
         gt_path = os.path.join(self.annot_folder, self._data_refs[index]+'.npy')
-        v_set = np.load(open(gt_path, "rb"),  encoding='bytes')
+        v_set = np.load(open(gt_path, "rb"),  encoding='bytes', allow_pickle=True)
         v_set = dict(v_set[()])
         return v_set.keys(), v_set
 

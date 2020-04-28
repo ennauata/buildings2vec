@@ -17,14 +17,16 @@ import math
 import operator
 from rdp import rdp
 from scipy.signal import find_peaks
-sys.path.insert(0, '/home/nelson/Workspace/building_reconstruction/working_model/wireframe/junc/utils/')
-from intersections import doIntersect
+sys.path.insert(0, '/local-scratch2/nnauata/outdoor_project/junction_detector/junc/utils/')
+# from intersections import doIntersect
 import pickle as p
 
-# sys.path.insert(0, '/home/nelson/Workspace/building_reconstruction/working_model/wireframe/junc/utils/')
 # from optimizer import extractCycle
-res_dir = '/home/nelson/Workspace/building_reconstruction/working_model/wireframe/result/junc/3/15/5'
-out_dir = '/home/nelson/Workspace/cities_dataset/regions_with_bkg'
+out_dir = '/local-scratch2/nnauata/for_teaser/regions_no_bkg'
+
+if not os.path.exists(out_dir):
+    os.mkdir(out_dir)
+
 def do_buildings_evaluation(dataset, predictions, box_only, output_folder, iou_types, expected_results, expected_results_sigma_tol):
 
     pred_boxlists = []
@@ -69,7 +71,8 @@ def do_buildings_evaluation(dataset, predictions, box_only, output_folder, iou_t
         mask_list = []
         # print(labels.shape, pred_score.shape, masks.shape)
         for s, l, m in zip(pred_score, labels, masks):
-            mask_list.append(m)
+            if l == 1:
+                mask_list.append(m)
             
         #     ## DEBUG ##
         #     print(l, s)
@@ -83,8 +86,9 @@ def do_buildings_evaluation(dataset, predictions, box_only, output_folder, iou_t
 
         # plt.imshow(deb_im)
         # plt.show()
+        
         np.save('{}/{}.npy'.format(out_dir, dataset.building_ids[image_id]), np.array(mask_list))
-    
+    print('FINISHED')
     return
 
 def getAngle(pt1, pt2):
