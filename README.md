@@ -2,7 +2,7 @@ Vectorizing World Buildings
 ======
 
 Code and instructions for our paper:
-[Vectorizing World Buildings: Planar Graph Reconstruction by Primitive Detection and Relationship Classification](https://arxiv.org/abs/1912.05135)
+[Vectorizing World Buildings: Planar Graph Reconstruction by Primitive Detection and Relationship Classification](https://arxiv.org/abs/1912.05135), ECCV 2020.
 
 Data
 ------
@@ -49,3 +49,15 @@ PS.: This code is still not clean nor optimized for good performance. Some modul
 
 - Set paths in run_ablation_experiments.py
 - Run python3 run_ablation_experiments.py
+
+## Citation
+```
+@inproceedings{nauata2020vectorizing,
+  title={Vectorizing World Buildings: Planar Graph Reconstruction by Primitive Detection and Relationship Inference},
+  author={Nauata, Nelson and Furukawa, Yasutaka},
+  booktitle={European Conference on Computer Vision},
+  pages={711--726},
+  year={2020},
+  organization={Springer}
+}
+```
